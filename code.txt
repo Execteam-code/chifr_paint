@@ -38,11 +38,13 @@ class Program
             try
             {
                 string encrypted = Encrypt(text ?? "", password ?? "");
-                using (Bitmap bmp = new Bitmap(input))
-                {
-                    using Bitmap result = EmbedText(encrypted, new Bitmap(bmp));
-                    result.Save(output, ImageFormat.Png);
-                }
+                Bitmap bmpIn = new Bitmap(input);
+                Bitmap bmp = new Bitmap(bmpIn);
+                bmpIn.Dispose();
+                Bitmap result = EmbedText(encrypted, bmp);
+                result.Save(output, ImageFormat.Png);
+                bmp.Dispose();
+                result.Dispose();
                 Console.WriteLine("✅ Текст зашифрован и спрятан!");
             }
             catch (Exception ex)
@@ -59,8 +61,9 @@ class Program
             
             try
             {
-                using Bitmap bmp = new Bitmap(path ?? "");
+                Bitmap bmp = new Bitmap(path ?? "");
                 string encrypted = ExtractText(bmp);
+                bmp.Dispose();
                 string decrypted = Decrypt(encrypted, password ?? "");
                 Console.WriteLine($"✅ {decrypted}");
             }
