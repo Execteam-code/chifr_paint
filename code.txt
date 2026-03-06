@@ -1,23 +1,75 @@
 using System;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
 
 class Program
 {
+    enum State { HIDING, FILL_WITH_ZEROS };
+    
     static void Main()
     {
-        Console.WriteLine("Steganography Tool v0.1");
+        Console.WriteLine("Steganography Tool v0.2");
         Console.WriteLine("1 - Шифровка");
         Console.WriteLine("2 - Расшифровка");
         string choice = Console.ReadLine();
         
         if (choice == "1")
         {
+            Console.Write("input.png: ");
+            string input = Console.ReadLine();
+            Console.Write("output.png: ");
+            string output = Console.ReadLine();
             Console.Write("Строка: ");
             string text = Console.ReadLine();
-            Console.WriteLine($"Шифруем: {text}");
+            
+            Bitmap bmp = new Bitmap(input);
+            Bitmap result = EmbedText(text, bmp);
+            result.Save(output, ImageFormat.Png);
+            Console.WriteLine("Спрятал в output.png");
         }
-        else if (choice == "2")
+    }
+    
+    static Bitmap EmbedText(string text, Bitmap bmp)
+    {
+        State state = State.HIDING;
+        int charIndex = 0;
+        int charValue = 0;
+        long colorUnitIndex = 0;
+        int zeros = 0;
+        
+        for (int i = 0; i < bmp.Height; i++)
         {
-            Console.WriteLine("Расшифровка...");
+            for (int j = 0; j < bmp.Width; j++)
+            {
+                Color pixel = bmp.GetPixel(j, i);
+                int R = pixel.R - pixel.R % 2;
+                int G = pixel.G - pixel.G % 2;
+                int B = pixel.B - pixel.B % 2;
+                
+                for (int n = 0; n < 3; n++)
+                {
+                    if (colorUnitIndex % 8 == 0)
+                    {
+                        if (zeros == 8) return bmp;
+                        if (charIndex >= text.Length)
+                            state = State.FILL_WITH_ZEROS;
+                        else
+                            charValue = text[charIndex++];
+                    }
+                    
+                    switch (colorUnitIndex % 3)
+                    {
+                        case 0: R += charValue % 2; charValue /= 2; break;
+                        case 1: G += charValue % 2; charValue /= 2; break;
+                        case 2: B += charValue % 2; charValue /= 2; break;
+                    }
+                    colorUnitIndex++;
+                    if (state == State.FILL_WITH_ZEROS) zeros++;
+                }
+                bmp.SetPixel(j, i, Color.FromArgb(R, G, B));
+            }
         }
+        return bmp;
     }
 }
