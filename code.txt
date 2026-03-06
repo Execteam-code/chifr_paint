@@ -8,11 +8,9 @@ using System.Text;
 
 class Program
 {
-    enum State { HIDING, FILL_WITH_ZEROS };
-    
     static void Main()
     {
-        Console.WriteLine("🔒 Steganography Tool v1.0.1");
+        Console.WriteLine("🔒 Steganography Tool v1.0.2 - FIXED");
         Console.WriteLine("1 - Спрятать текст в PNG");
         Console.WriteLine("2 - Извлечь и расшифровать");
         Console.Write("Выбор: ");
@@ -38,14 +36,18 @@ class Program
             try
             {
                 string encrypted = Encrypt(text ?? "", password ?? "");
+                var data = Encoding.UTF8.GetBytes(encrypted);
+                var lenBytes = BitConverter.GetBytes(data.Length);
+                var allBytes = lenBytes.Concat(data).ToArray();
+                
                 Bitmap bmpIn = new Bitmap(input);
                 Bitmap bmp = new Bitmap(bmpIn);
                 bmpIn.Dispose();
-                Bitmap result = EmbedText(encrypted, bmp);
+                Bitmap result = EmbedBytes(allBytes, bmp);
                 result.Save(output, ImageFormat.Png);
                 bmp.Dispose();
                 result.Dispose();
-                Console.WriteLine("✅ Текст зашифрован и спрятан!");
+                Console.WriteLine($"✅ Текст зашифрован и спрятан! Длина: {encrypted.Length} символов");
             }
             catch (Exception ex)
             {
@@ -62,8 +64,20 @@ class Program
             try
             {
                 Bitmap bmp = new Bitmap(path ?? "");
-                string encrypted = ExtractText(bmp);
+                byte[] allBytes = ExtractBytes(bmp);
                 bmp.Dispose();
+                
+                if (allBytes.Length < 4)
+                    throw new Exception("Недостаточно данных в изображении");
+                
+                int len = BitConverter.ToInt32(allBytes, 0);
+                if (allBytes.Length < 4 + len)
+                    throw new Exception("Повреждённые данные в изображении");
+                
+                var data = new byte[len];
+                Buffer.BlockCopy(allBytes, 4, data, 0, len);
+                string encrypted = Encoding.UTF8.GetString(data);
+                
                 string decrypted = Decrypt(encrypted, password ?? "");
                 Console.WriteLine($"✅ {decrypted}");
             }
@@ -142,88 +156,75 @@ class Program
         return random;
     }
     
-    static Bitmap EmbedText(string text, Bitmap bmp)
+    static Bitmap EmbedBytes(byte[] data, Bitmap bmp)
     {
-        State state = State.HIDING;
-        int charIndex = 0;
-        int charValue = 0;
-        long colorUnitIndex = 0;
-        int zeros = 0;
+        int dataIndex = 0;
+        int bitIndex = 0;
         
-        for (int i = 0; i < bmp.Height; i++)
+        for (int y = 0; y < bmp.Height; y++)
         {
-            for (int j = 0; j < bmp.Width; j++)
+            for (int x = 0; x < bmp.Width; x++)
             {
-                Color pixel = bmp.GetPixel(j, i);
-                int R = pixel.R - pixel.R % 2;
-                int G = pixel.G - pixel.G % 2;
-                int B = pixel.B - pixel.B % 2;
+                if (dataIndex >= data.Length) return bmp;
                 
-                for (int n = 0; n < 3; n++)
+                Color p = bmp.GetPixel(x, y);
+                int r = p.R & ~1;
+                int g = p.G & ~1;
+                int b = p.B & ~1;
+                
+                for (int n = 0; n < 3 && dataIndex < data.Length; n++)
                 {
-                    if (colorUnitIndex % 8 == 0)
+                    int bit = (data[dataIndex] >> (7 - bitIndex)) & 1;
+                    switch (n)
                     {
-                        if (zeros == 8) return bmp;
-                        if (charIndex >= text.Length)
-                            state = State.FILL_WITH_ZEROS;
-                        else
-                            charValue = text[charIndex++];
+                        case 0: r |= bit; break;
+                        case 1: g |= bit; break;
+                        case 2: b |= bit; break;
                     }
                     
-                    switch (colorUnitIndex % 3)
+                    bitIndex++;
+                    if (bitIndex == 8)
                     {
-                        case 0: R += charValue % 2; charValue /= 2; break;
-                        case 1: G += charValue % 2; charValue /= 2; break;
-                        case 2: B += charValue % 2; charValue /= 2; bmp.SetPixel(j, i, Color.FromArgb(R, G, B)); break;
+                        bitIndex = 0;
+                        dataIndex++;
                     }
-                    colorUnitIndex++;
-                    if (state == State.FILL_WITH_ZEROS) zeros++;
                 }
+                
+                bmp.SetPixel(x, y, Color.FromArgb(r, g, b));
             }
         }
         return bmp;
     }
     
-    static string ExtractText(Bitmap bmp)
+    static byte[] ExtractBytes(Bitmap bmp)
     {
-        int colorUnitIndex = 0;
-        int charValue = 0;
-        string result = "";
-        
-        for (int i = 0; i < bmp.Height; i++)
+        using (var ms = new MemoryStream())
         {
-            for (int j = 0; j < bmp.Width; j++)
+            int currentByte = 0;
+            int bitIndex = 0;
+            
+            for (int y = 0; y < bmp.Height; y++)
             {
-                Color pixel = bmp.GetPixel(j, i);
-                for (int n = 0; n < 3; n++)
+                for (int x = 0; x < bmp.Width; x++)
                 {
-                    switch (colorUnitIndex % 3)
+                    Color p = bmp.GetPixel(x, y);
+                    
+                    int[] bits = { p.R & 1, p.G & 1, p.B & 1 };
+                    foreach (var bit in bits)
                     {
-                        case 0: charValue = charValue * 2 + pixel.R % 2; break;
-                        case 1: charValue = charValue * 2 + pixel.G % 2; break;
-                        case 2: charValue = charValue * 2 + pixel.B % 2; break;
-                    }
-                    colorUnitIndex++;
-                    if (colorUnitIndex % 8 == 0)
-                    {
-                        charValue = ReverseBits(charValue);
-                        if (charValue == 0) break;
-                        result += (char)charValue;
+                        currentByte = (currentByte << 1) | bit;
+                        bitIndex++;
+                        
+                        if (bitIndex == 8)
+                        {
+                            ms.WriteByte((byte)currentByte);
+                            currentByte = 0;
+                            bitIndex = 0;
+                        }
                     }
                 }
             }
+            return ms.ToArray();
         }
-        return result;
-    }
-    
-    static int ReverseBits(int n)
-    {
-        int result = 0;
-        for (int i = 0; i < 8; i++)
-        {
-            result = result * 2 + n % 2;
-            n /= 2;
-        }
-        return result;
     }
 }
