@@ -9,7 +9,7 @@ class Program
     
     static void Main()
     {
-        Console.WriteLine("Steganography Tool v0.3");
+        Console.WriteLine("Steganography Tool v0.4");
         Console.WriteLine("1 - Шифровка");
         Console.WriteLine("2 - Расшифровка");
         string choice = Console.ReadLine();
@@ -34,7 +34,7 @@ class Program
             string path = Console.ReadLine();
             Bitmap bmp = new Bitmap(path);
             string extracted = ExtractText(bmp);
-            Console.WriteLine($"Извлек: {extracted}");
+            Console.WriteLine($"Извлек: {extracted.TrimEnd('\0')}");
         }
     }
     
@@ -70,12 +70,11 @@ class Program
                     {
                         case 0: R += charValue % 2; charValue /= 2; break;
                         case 1: G += charValue % 2; charValue /= 2; break;
-                        case 2: B += charValue % 2; charValue /= 2; break;
+                        case 2: B += charValue % 2; charValue /= 2; bmp.SetPixel(j, i, Color.FromArgb(R, G, B)); break;
                     }
                     colorUnitIndex++;
                     if (state == State.FILL_WITH_ZEROS) zeros++;
                 }
-                bmp.SetPixel(j, i, Color.FromArgb(R, G, B));
             }
         }
         return bmp;
@@ -103,11 +102,23 @@ class Program
                     colorUnitIndex++;
                     if (colorUnitIndex % 8 == 0)
                     {
+                        charValue = ReverseBits(charValue);
+                        if (charValue == 0) break;
                         result += (char)charValue;
-                        charValue = 0;
                     }
                 }
             }
+        }
+        return result;
+    }
+    
+    static int ReverseBits(int n)
+    {
+        int result = 0;
+        for (int i = 0; i < 8; i++)
+        {
+            result = result * 2 + n % 2;
+            n /= 2;
         }
         return result;
     }
