@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Text;
 
 class Program
 {
@@ -9,7 +10,7 @@ class Program
     
     static void Main()
     {
-        Console.WriteLine("Steganography Tool v0.4");
+        Console.WriteLine("Steganography Tool v0.5");
         Console.WriteLine("1 - Шифровка");
         Console.WriteLine("2 - Расшифровка");
         string choice = Console.ReadLine();
@@ -22,20 +23,47 @@ class Program
             string output = Console.ReadLine();
             Console.Write("Строка: ");
             string text = Console.ReadLine();
+            Console.Write("Пароль: ");
+            string password = Console.ReadLine();
             
+            string encrypted = EncryptXOR(text, password);
             Bitmap bmp = new Bitmap(input);
-            Bitmap result = EmbedText(text, bmp);
+            Bitmap result = EmbedText(encrypted, bmp);
             result.Save(output, ImageFormat.Png);
-            Console.WriteLine("Спрятал в output.png");
+            Console.WriteLine("Зашифровано в output.png");
         }
         else if (choice == "2")
         {
             Console.Write("image.png: ");
             string path = Console.ReadLine();
+            Console.Write("Пароль: ");
+            string password = Console.ReadLine();
+            
             Bitmap bmp = new Bitmap(path);
-            string extracted = ExtractText(bmp);
-            Console.WriteLine($"Извлек: {extracted.TrimEnd('\0')}");
+            string encrypted = ExtractText(bmp);
+            string decrypted = DecryptXOR(encrypted, password);
+            Console.WriteLine($"Расшифровано: {decrypted}");
         }
+    }
+    
+    static string EncryptXOR(string text, string key)
+    {
+        byte[] data = Encoding.UTF8.GetBytes(text);
+        byte[] keyBytes = Encoding.UTF8.GetBytes(key);
+        byte[] result = new byte[data.Length];
+        for (int i = 0; i < data.Length; i++)
+            result[i] = (byte)(data[i] ^ keyBytes[i % keyBytes.Length]);
+        return Convert.ToBase64String(result);
+    }
+    
+    static string DecryptXOR(string encrypted, string key)
+    {
+        byte[] data = Convert.FromBase64String(encrypted);
+        byte[] keyBytes = Encoding.UTF8.GetBytes(key);
+        byte[] result = new byte[data.Length];
+        for (int i = 0; i < data.Length; i++)
+            result[i] = (byte)(data[i] ^ keyBytes[i % keyBytes.Length]);
+        return Encoding.UTF8.GetString(result);
     }
     
     static Bitmap EmbedText(string text, Bitmap bmp)
