@@ -1,0 +1,23 @@
+using System;
+
+class Program
+{
+    static void Main()
+    {
+        Console.WriteLine("Steganography Tool v0.1");
+        Console.WriteLine("1 - Шифровка");
+        Console.WriteLine("2 - Расшифровка");
+        string choice = Console.ReadLine();
+        
+        if (choice == "1")
+        {
+            Console.Write("Строка: ");
+            string text = Console.ReadLine();
+            Console.WriteLine($"Шифруем: {text}");
+        }
+        else if (choice == "2")
+        {
+            Console.WriteLine("Расшифровка...");
+        }
+    }
+}
