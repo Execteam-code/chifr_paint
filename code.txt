@@ -9,7 +9,7 @@ class Program
     
     static void Main()
     {
-        Console.WriteLine("Steganography Tool v0.2");
+        Console.WriteLine("Steganography Tool v0.3");
         Console.WriteLine("1 - Шифровка");
         Console.WriteLine("2 - Расшифровка");
         string choice = Console.ReadLine();
@@ -27,6 +27,14 @@ class Program
             Bitmap result = EmbedText(text, bmp);
             result.Save(output, ImageFormat.Png);
             Console.WriteLine("Спрятал в output.png");
+        }
+        else if (choice == "2")
+        {
+            Console.Write("image.png: ");
+            string path = Console.ReadLine();
+            Bitmap bmp = new Bitmap(path);
+            string extracted = ExtractText(bmp);
+            Console.WriteLine($"Извлек: {extracted}");
         }
     }
     
@@ -71,5 +79,36 @@ class Program
             }
         }
         return bmp;
+    }
+    
+    static string ExtractText(Bitmap bmp)
+    {
+        int colorUnitIndex = 0;
+        int charValue = 0;
+        string result = "";
+        
+        for (int i = 0; i < bmp.Height; i++)
+        {
+            for (int j = 0; j < bmp.Width; j++)
+            {
+                Color pixel = bmp.GetPixel(j, i);
+                for (int n = 0; n < 3; n++)
+                {
+                    switch (colorUnitIndex % 3)
+                    {
+                        case 0: charValue = charValue * 2 + pixel.R % 2; break;
+                        case 1: charValue = charValue * 2 + pixel.G % 2; break;
+                        case 2: charValue = charValue * 2 + pixel.B % 2; break;
+                    }
+                    colorUnitIndex++;
+                    if (colorUnitIndex % 8 == 0)
+                    {
+                        result += (char)charValue;
+                        charValue = 0;
+                    }
+                }
+            }
+        }
+        return result;
     }
 }
