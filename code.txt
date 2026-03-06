@@ -12,7 +12,7 @@ class Program
     
     static void Main()
     {
-        Console.WriteLine("🔒 Steganography Tool v1.0.0");
+        Console.WriteLine("🔒 Steganography Tool v1.0.1");
         Console.WriteLine("1 - Спрятать текст в PNG");
         Console.WriteLine("2 - Извлечь и расшифровать");
         Console.Write("Выбор: ");
@@ -84,7 +84,7 @@ class Program
     static string Encrypt(string plainText, string passPhrase)
     {
         byte[] salt = GenerateRandomBytes(32);
-        byte[] iv = GenerateRandomBytes(32);
+        byte[] iv = GenerateRandomBytes(16);
         byte[] plain = Encoding.UTF8.GetBytes(plainText);
         byte[] key;
         
@@ -112,8 +112,8 @@ class Program
     {
         byte[] all = Convert.FromBase64String(cipherText);
         byte[] salt = all.Take(32).ToArray();
-        byte[] iv = all.Skip(32).Take(32).ToArray();
-        byte[] cipher = all.Skip(64).ToArray();
+        byte[] iv = all.Skip(32).Take(16).ToArray();
+        byte[] cipher = all.Skip(48).ToArray();
         byte[] key;
         
         using (Rfc2898DeriveBytes pdb = new Rfc2898DeriveBytes(passPhrase, salt, 1000))
