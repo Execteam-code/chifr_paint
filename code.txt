@@ -12,40 +12,70 @@ class Program
     
     static void Main()
     {
-        Console.WriteLine("Steganography Tool v0.6");
-        Console.WriteLine("1 - Шифровка");
-        Console.WriteLine("2 - Расшифровка");
-        string choice = Console.ReadLine();
+        Console.WriteLine("🔒 Steganography Tool v1.0.0");
+        Console.WriteLine("1 - Спрятать текст в PNG");
+        Console.WriteLine("2 - Извлечь и расшифровать");
+        Console.Write("Выбор: ");
+        string choice = Console.ReadLine()?.Trim();
         
         if (choice == "1")
         {
             Console.Write("input.png: ");
-            string input = Console.ReadLine();
+            string input = Console.ReadLine()?.Trim();
             Console.Write("output.png: ");
-            string output = Console.ReadLine();
-            Console.Write("Строка: ");
+            string output = Console.ReadLine()?.Trim();
+            Console.Write("Текст: ");
             string text = Console.ReadLine();
             Console.Write("Пароль: ");
             string password = Console.ReadLine();
             
-            string encrypted = Encrypt(text, password);
-            Bitmap bmp = new Bitmap(input);
-            Bitmap result = EmbedText(encrypted, bmp);
-            result.Save(output, ImageFormat.Png);
-            Console.WriteLine("Зашифровано в output.png");
+            if (string.IsNullOrEmpty(input) || string.IsNullOrEmpty(output))
+            {
+                Console.WriteLine("❌ Ошибка: пути обязательны");
+                return;
+            }
+            
+            try
+            {
+                string encrypted = Encrypt(text ?? "", password ?? "");
+                using (Bitmap bmp = new Bitmap(input))
+                {
+                    using Bitmap result = EmbedText(encrypted, new Bitmap(bmp));
+                    result.Save(output, ImageFormat.Png);
+                }
+                Console.WriteLine("✅ Текст зашифрован и спрятан!");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Ошибка: {ex.Message}");
+            }
         }
         else if (choice == "2")
         {
             Console.Write("image.png: ");
-            string path = Console.ReadLine();
+            string path = Console.ReadLine()?.Trim();
             Console.Write("Пароль: ");
             string password = Console.ReadLine();
             
-            Bitmap bmp = new Bitmap(path);
-            string encrypted = ExtractText(bmp);
-            string decrypted = Decrypt(encrypted, password);
-            Console.WriteLine($"Расшифровано: {decrypted}");
+            try
+            {
+                using Bitmap bmp = new Bitmap(path ?? "");
+                string encrypted = ExtractText(bmp);
+                string decrypted = Decrypt(encrypted, password ?? "");
+                Console.WriteLine($"✅ {decrypted}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Ошибка: {ex.Message}");
+            }
         }
+        else
+        {
+            Console.WriteLine("❌ Неверный выбор");
+        }
+        
+        Console.WriteLine("\nНажмите Enter...");
+        Console.ReadLine();
     }
     
     static string Encrypt(string plainText, string passPhrase)
